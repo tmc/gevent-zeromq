@@ -1,0 +1,3 @@
+Wrapper of pyzmq to make it compatible with gevent.
+
+Leans heavily on Ben Ford's work for zmq support in eventlet.
