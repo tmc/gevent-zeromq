@@ -1,9 +1,9 @@
 from gevent import spawn, spawn_later
-import gevent_zmq as zmq
+from gevent_zeromq import zmq
 
 # server
 ctx = zmq.Context()
-sock = ctx.socket(zmq.DOWNSTREAM)
+sock = ctx.socket(zmq.PUSH)
 sock.bind('ipc:///tmp/zmqtest')
 
 spawn(sock.send_pyobj, ('this', 'is', 'a', 'python', 'tuple'))
@@ -15,7 +15,7 @@ spawn_later(4, sock.send_pyobj, 'quit')
 
 # client
 ctx = zmq.Context() # create a new context to kick the wheels
-sock = ctx.socket(zmq.UPSTREAM)
+sock = ctx.socket(zmq.PULL)
 sock.connect('ipc:///tmp/zmqtest')
 
 def get_objs(sock):

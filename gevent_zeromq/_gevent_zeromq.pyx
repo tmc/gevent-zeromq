@@ -48,7 +48,6 @@ class Socket(zmq.Socket):
     is deferred to the hub if a ``zmq.EAGAIN`` (retry) error is raised
     """
 
-
     def _send_message(self, msg, flags=0):
         flags |= zmq.NOBLOCK
         while True:
@@ -56,8 +55,7 @@ class Socket(zmq.Socket):
                 super(Socket, self)._send_message(msg, flags)
                 return
             except zmq.ZMQError, e:
-                print 'e', e.errno == EAGAIN
-                if e.errno != EAGAIN:
+                if e.errno != zmq.EAGAIN:
                     raise
             wait_write(self.getsockopt(zmq.FD))
 
@@ -68,7 +66,7 @@ class Socket(zmq.Socket):
                 super(Socket, self)._send_copy(msg, flags)
                 return
             except zmq.ZMQError, e:
-                if e.errno != EAGAIN:
+                if e.errno != zmq.EAGAIN:
                     raise
             wait_write(self.getsockopt(zmq.FD))
 
@@ -81,7 +79,7 @@ class Socket(zmq.Socket):
                 if m is not None:
                     return m
             except zmq.ZMQError, e:
-                if e.errno != EAGAIN:
+                if e.errno != zmq.EAGAIN:
                     raise
             wait_read(self.getsockopt(zmq.FD))
 
@@ -93,7 +91,7 @@ class Socket(zmq.Socket):
                 if m is not None:
                     return m
             except zmq.ZMQError, e:
-                if e.errno != EAGAIN:
+                if e.errno != zmq.EAGAIN:
                     raise
             wait_read(self.getsockopt(zmq.FD))
 
