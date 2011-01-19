@@ -16,7 +16,7 @@ def get_ext_modules():
     return [
         Extension(
             'gevent_zeromq._gevent_zeromq',
-            ['gevent_zeromq/_gevent_zeromq.pyx'],
+            ['gevent_zeromq/_gevent_zeromq_python.py'],
             include_dirs = zmq.get_includes(),
         ),
     ]
