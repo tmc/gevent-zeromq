@@ -2,28 +2,26 @@
 """
 import zmq
 from zmq import *
+from zmq.core import context, socket
 from gevent.hub import _threadlocal
 from gevent.socket import wait_read, wait_write
 
 
-def Context(io_threads=1):
-    """Factory function replacement for :class:`zmq.core.context.Context`
-    
-    It's a factory function due to the fact that there can only be one :class:`_Context`
-    instance per thread. This is due to the way :class:`zmq.core.poll.Poller`
-    works
-    """
-    try:
-        return _threadlocal.zmq_context
-    except AttributeError:
-        _threadlocal.zmq_context = _Context(io_threads)
-        return _threadlocal.zmq_context
+class Context(context.Context):
+    """Replacement for :class:`zmq.core.context.Context`
 
-class _Context(zmq.Context):
-    """Internal subclass of :class:`zmq.core.context.Context`
-
-    .. warning:: Do not call this directly
+    Ensures only one Context instance per thread. Returns our greened Socket on
+    calls to `socket`.
     """
+    def __new__(cls, io_threads=1):
+        try:
+            c = _threadlocal.zmq_context
+            if c.closed:
+                raise AttributeError
+        except AttributeError:
+            _threadlocal.zmq_context = context.Context.__new__(cls, io_threads)
+            c = _threadlocal.zmq_context
+        return c
 
     def socket(self, socket_type):
         """Overridden method to ensure that the green version of socket is used
@@ -34,7 +32,8 @@ class _Context(zmq.Context):
         """
         return Socket(self, socket_type)
 
-class Socket(zmq.Socket):
+
+class Socket(socket.Socket):
     """Green version of :class:`zmq.core.socket.Socket
 
     The following four methods are overridden:
