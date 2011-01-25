@@ -1,5 +1,7 @@
-from distutils.core import setup
-from distutils.extension import Extension
+try:
+    from setuptools import Extension, setup
+except ImportError:
+    from distutils.core import Extension, setup
 from distutils.command.build_ext import build_ext
 
 cython_available = False
