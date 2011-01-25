@@ -11,18 +11,8 @@ from gevent.hub import get_hub, _threadlocal
 class Context(context.Context):
     """Replacement for :class:`zmq.core.context.Context`
 
-    Ensures only one Context instance per thread. Returns our greened Socket on
-    calls to `socket`.
+    Ensures that the greened Socket below is used in calls to `socket`.
     """
-    def __new__(cls, io_threads=1):
-        try:
-            c = _threadlocal.zmq_context
-            if c.closed:
-                raise AttributeError
-        except AttributeError:
-            _threadlocal.zmq_context = context.Context.__new__(cls, io_threads)
-            c = _threadlocal.zmq_context
-        return c
 
     def socket(self, socket_type):
         """Overridden method to ensure that the green version of socket is used
