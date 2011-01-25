@@ -97,7 +97,7 @@ class Socket(socket.Socket):
         flags |= zmq.NOBLOCK
         while True:
             try:
-                m = super(Socket, self)._recv_message(flags)
+                m = super(Socket, self)._recv_message(flags, track)
                 if m is not None:
                     return m
             except zmq.ZMQError, e:
