@@ -68,7 +68,6 @@ class Socket(socket.Socket):
             from gevent.core import read_event
             self._state_event = read_event(self.getsockopt(zmq.FD), self.__state_changed, persist=True)
 
-
     def __state_changed(self, event, _evtype):
         events = self.getsockopt(zmq.EVENTS)
         if events & zmq.POLLOUT:
