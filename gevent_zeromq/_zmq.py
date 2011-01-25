@@ -59,8 +59,15 @@ class Socket(socket.Socket):
     def __setup_events(self):
         self._read_ready = Event()
         self._write_ready = Event()
-        self._state_event = get_hub().reactor.read_event(self.getsockopt(zmq.FD), persist=True)
-        self._state_event.add(None, self.__state_changed)
+        try:
+            read_event = get_hub().reactor.read_event
+            self._state_event = read_event(self.getsockopt(zmq.FD), persist=True)
+            self._state_event.add(None, self.__state_changed)
+        except AttributeError:
+            # for gevent<=0.14 compatibility
+            from gevent.core import read_event
+            self._state_event = read_event(self.getsockopt(zmq.FD), self.__state_changed, persist=True)
+
 
     def __state_changed(self, event, _evtype):
         events = self.getsockopt(zmq.EVENTS)
