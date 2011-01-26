@@ -80,9 +80,9 @@ class Socket(socket.Socket):
         self.__readable.wait()
 
     def send(self, data, flags=0, copy=True, track=False):
+        # Marker as to if we've encountered EAGAIN yet. Required have zmq work well with deallocating many sockets
+        saw_eagain = False
         while True: # Attempt to complete this operation indefinitely, blocking the current greenlet
-            # Marker as to if we've encountered EAGAIN yet. Required have zmq work well with deallocating many sockets
-            saw_eagain = False
             try:
                 # attempt the actual call, ensuring the zmq.NOBLOCK flag
                 return super(Socket, self).send(data, flags|zmq.NOBLOCK, copy, track)
@@ -98,8 +98,8 @@ class Socket(socket.Socket):
             self._wait_write()
 
     def recv(self, flags=0, copy=True, track=False):
+        saw_eagain = False
         while True:
-            saw_eagain = False
             try:
                 m = super(Socket, self).recv(flags|zmq.NOBLOCK, copy, track)
                 if m is not None:
