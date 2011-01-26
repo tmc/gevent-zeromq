@@ -101,9 +101,7 @@ class Socket(socket.Socket):
         saw_eagain = False
         while True:
             try:
-                m = super(Socket, self).recv(flags|zmq.NOBLOCK, copy, track)
-                if m is not None:
-                    return m
+                return super(Socket, self).recv(flags|zmq.NOBLOCK, copy, track)
             except zmq.ZMQError, e:
                 if e.errno != zmq.EAGAIN:
                     raise
