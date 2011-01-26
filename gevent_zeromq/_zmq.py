@@ -50,6 +50,14 @@ class Socket(socket.Socket):
         super(Socket, self).__init__(context, socket_type)
         self.__setup_events()
 
+    def close(self):
+        # close the _state_event event and delete it, keeps the number of
+        # of active file descriptors down
+        super(Socket, self).close()
+        if hasattr(self, '_state_event'):
+            self._state_event.cancel()
+            del(self._state_event)
+
     def __setup_events(self):
         self.__readable = Event()
         self.__writable = Event()
