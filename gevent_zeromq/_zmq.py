@@ -4,9 +4,11 @@ import zmq
 from zmq import *
 from zmq.core import context, socket
 
-from gevent import sleep
 from gevent.event import Event
 from gevent.hub import get_hub
+
+# the number of EAGAINS to encounter before defering to file descriptor polling
+NUM_EAGAINS_BEFORE_DEFER = 5
 
 
 class Context(context.Context):
@@ -72,7 +74,11 @@ class Socket(socket.Socket):
 
     def __state_changed(self, event, _evtype):
         if self.closed:
+            # if the socket has entered a close state resume any waiting greenlets
+            self.__writable.set()
+            self.__readable.set()
             return
+
         events = self.getsockopt(zmq.EVENTS)
         if events & zmq.POLLOUT:
             self.__writable.set()
@@ -89,7 +95,7 @@ class Socket(socket.Socket):
 
     def send(self, data, flags=0, copy=True, track=False):
         # Marker as to if we've encountered EAGAIN yet. Required have zmq work well with deallocating many sockets
-        saw_eagain = False
+        num_eagains = 0
         while True: # Attempt to complete this operation indefinitely, blocking the current greenlet
             try:
                 # attempt the actual call, ensuring the zmq.NOBLOCK flag
@@ -99,21 +105,21 @@ class Socket(socket.Socket):
                 if e.errno != zmq.EAGAIN:
                     raise
                 # if this is our first time seeing EAGAIN, avoid calling _wait_write just yet
-                if not saw_eagain:
-                    saw_eagain = True
+                if num_eagains < NUM_EAGAINS_BEFORE_DEFER:
+                    num_eagains += 1
                     continue
-            # at this point we've seen two EAGAINs, defer to the event loop until we're notified the socket is writable
+            # at this point we've seen enough EAGAINs, defer to the event loop until we're notified the socket is writable
             self._wait_write()
 
     def recv(self, flags=0, copy=True, track=False):
-        saw_eagain = False
+        num_eagains = 0
         while True:
             try:
                 return super(Socket, self).recv(flags|zmq.NOBLOCK, copy, track)
             except zmq.ZMQError, e:
                 if e.errno != zmq.EAGAIN:
                     raise
-                if not saw_eagain:
-                    saw_eagain = True
+                if num_eagains < NUM_EAGAINS_BEFORE_DEFER:
+                    num_eagains += 1
                     continue
             self._wait_read()
