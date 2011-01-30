@@ -2,7 +2,10 @@
 """
 import zmq
 from zmq import *
-from zmq.core import context, socket
+
+# imported with different names as to not have the star import try to to clobber (when building with cython)
+from zmq.core.context import Context as _original_Context
+from zmq.core.socket import Socket as _original_Socket
 
 from gevent.event import Event
 from gevent.hub import get_hub
@@ -11,7 +14,7 @@ from gevent.hub import get_hub
 NUM_EAGAINS_BEFORE_DEFER = 5
 
 
-class Context(context.Context):
+class _Context(_original_Context):
     """Replacement for :class:`zmq.core.context.Context`
 
     Ensures that the greened Socket below is used in calls to `socket`.
@@ -24,10 +27,11 @@ class Context(context.Context):
         that a :class:`Socket` with all of its send and recv methods set to be
         non-blocking is returned
         """
-        return Socket(self, socket_type)
+        if self.closed:
+            raise ZMQError(ENOTSUP)
+        return _Socket(self, socket_type)
 
-
-class Socket(socket.Socket):
+class _Socket(_original_Socket):
     """Green version of :class:`zmq.core.socket.Socket`
 
     The following four methods are overridden:

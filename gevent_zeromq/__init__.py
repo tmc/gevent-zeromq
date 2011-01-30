@@ -2,7 +2,9 @@
 
 """
 
-import gevent_zeromq._zmq as zmq
+import gevent_zeromq.core as zmq
+zmq.Context = zmq._Context
+zmq.Socket = zmq._Socket
 
 def monkey_patch():
     ozmq = __import__('zmq')

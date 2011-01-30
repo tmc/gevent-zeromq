@@ -1,3 +1,4 @@
+import os
 try:
     from setuptools import Extension, setup
 except ImportError:
@@ -17,9 +18,9 @@ def get_ext_modules():
     import zmq
     return [
         Extension(
-            'gevent_zeromq._zmq',
-            ['gevent_zeromq/_zmq.py'],
-            include_dirs = zmq.get_includes(),
+            'gevent_zeromq.core',
+            ['gevent_zeromq/core.py'],
+            include_dirs = zmq.get_includes() + [os.path.dirname(os.path.dirname(zmq.__file__))]
         ),
     ]
 
