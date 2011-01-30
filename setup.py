@@ -15,11 +15,20 @@ except ImportError:
     pass
 
 def get_ext_modules():
-    import zmq
+    try:
+        import zmq
+    except ImportError:
+        print 'pyzmq must be installed to build cython version of gevent-zeromq.'
+        return []
+    try:
+        import gevent
+    except ImportError:
+        print 'gevent must be installed to build cython version of gevent-zeromq.'
+        return []
     return [
         Extension(
             'gevent_zeromq.core',
-            ['gevent_zeromq/core.py'],
+            ['gevent_zeromq/core.pyx'],
             include_dirs = zmq.get_includes() + [os.path.dirname(os.path.dirname(zmq.__file__))]
         ),
     ]
@@ -29,7 +38,7 @@ if cython_available:
 else:
     ext_modules = []
 
-__version__ = (0, 0, 1)
+__version__ = (0, 0, 2)
 
 setup(
     name = 'gevent_zeromq',
