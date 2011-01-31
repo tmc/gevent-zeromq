@@ -100,6 +100,9 @@ class _Socket(_original_Socket):
     def send(self, data, flags=0, copy=True, track=False):
         # Marker as to if we've encountered EAGAIN yet. Required have zmq work well with deallocating many sockets
         num_eagains = 0
+        # if we're given the NOBLOCK flag act as normal and let the EAGAIN get raised
+        if flags & zmq.NOBLOCK:
+            return super(Socket, self).send(data, flags, copy, track)
         # ensure the zmq.NOBLOCK flag is part of flags
         flags |= zmq.NOBLOCK
         while True: # Attempt to complete this operation indefinitely, blocking the current greenlet
@@ -119,6 +122,8 @@ class _Socket(_original_Socket):
 
     def recv(self, flags=0, copy=True, track=False):
         num_eagains = 0
+        if flags & zmq.NOBLOCK:
+            return super(Socket, self).recv(flags, copy, track)
         flags |= zmq.NOBLOCK
         while True:
             try:
