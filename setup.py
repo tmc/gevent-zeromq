@@ -1,10 +1,7 @@
 import os
 import sys
 from glob import glob
-try:
-    from setuptools import Command, Extension, setup
-except ImportError:
-    from distutils.core import Command, Extension, setup
+from distutils.core import Command, Extension, setup
 from distutils.command.build_ext import build_ext
 from traceback import print_exc
 
@@ -14,7 +11,7 @@ try:
     from Cython.Distutils.extension import Extension
     cython_available = True
 except ImportError, e:
-    print 'cython not available, proceeding with pure python implementation. (%s)' % e
+    print 'WARNING: cython not available, proceeding with pure python implementation. (%s)' % e
     pass
 
 try:
@@ -27,12 +24,12 @@ def get_ext_modules():
     try:
         import gevent
     except ImportError, e:
-        print 'gevent must be installed to build cython version of gevent-zeromq (%s).', e
+        print 'WARNING: gevent must be installed to build cython version of gevent-zeromq (%s).', e
         return []
     try:
         import zmq
     except ImportError, e:
-        print 'pyzmq must be installed to build cython version of gevent-zeromq (%s).', e
+        print 'WARNING: pyzmq(>=2.1.0) must be installed to build cython version of gevent-zeromq (%s).', e
         return []
     return [
         Extension(
@@ -108,5 +105,4 @@ setup(
     author = 'Travis Cline',
     author_email = 'travis.cline@gmail.com',
     description = 'gevent compatibility layer for pyzmq',
-    install_requires = ['pyzmq>=2.1.0', 'gevent'],
 )
