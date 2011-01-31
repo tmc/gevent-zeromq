@@ -10,8 +10,6 @@ from zmq.core.socket cimport Socket as _original_Socket
 from gevent.event import Event
 from gevent.hub import get_hub
 
-# the number of EAGAINS to encounter before defering to file descriptor polling
-cdef int NUM_EAGAINS_BEFORE_DEFER = 5
 
 cdef class _Socket(_original_Socket)
 
@@ -100,29 +98,23 @@ cdef class _Socket(_original_Socket):
         self.__readable.wait()
 
     def send(self, object data, int flags=0, bint copy=True, bint track=False):
-        # Marker as to if we've encountered EAGAIN yet. Required have zmq work well with deallocating many sockets
-        cdef int num_eagains = 0
         # if we're given the NOBLOCK flag act as normal and let the EAGAIN get raised
         if flags & zmq.NOBLOCK:
             return _original_Socket.send(self, data, flags, copy, track)
+        # ensure the zmq.NOBLOCK flag is part of flags
         flags = flags | NOBLOCK
         while True: # Attempt to complete this operation indefinitely, blocking the current greenlet
             try:
-                # attempt the actual call, ensuring the zmq.NOBLOCK flag
+                # attempt the actual call
                 return _original_Socket.send(self, data, flags, copy, track)
             except zmq.ZMQError, e:
                 # if the raised ZMQError is not EAGAIN, reraise
                 if e.errno != zmq.EAGAIN:
                     raise
-                # if this is our first time seeing EAGAIN, avoid calling _wait_write just yet
-                if num_eagains < NUM_EAGAINS_BEFORE_DEFER:
-                    num_eagains += 1
-                    continue
-            # at this point we've seen enough EAGAINs, defer to the event loop until we're notified the socket is writable
+            # defer to the event loop until we're notified the socket is writable
             self._wait_write()
 
     def recv(self, int flags=0, bint copy=True, bint track=False):
-        cdef int num_eagains = 0
         if flags & zmq.NOBLOCK:
             return _original_Socket.recv(self, flags, copy, track)
         flags = flags | NOBLOCK
@@ -132,7 +124,4 @@ cdef class _Socket(_original_Socket):
             except ZMQError, e:
                 if e.errno != zmq.EAGAIN:
                     raise
-                if num_eagains < NUM_EAGAINS_BEFORE_DEFER:
-                    num_eagains += 1
-                    continue
             self._wait_read()

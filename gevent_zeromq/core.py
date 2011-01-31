@@ -10,9 +10,6 @@ from zmq.core.socket import Socket as _original_Socket
 from gevent.event import Event
 from gevent.hub import get_hub
 
-# the number of EAGAINS to encounter before defering to file descriptor polling
-NUM_EAGAINS_BEFORE_DEFER = 5
-
 
 class _Context(_original_Context):
     """Replacement for :class:`zmq.core.context.Context`
@@ -98,8 +95,6 @@ class _Socket(_original_Socket):
         self.__readable.wait()
 
     def send(self, data, flags=0, copy=True, track=False):
-        # Marker as to if we've encountered EAGAIN yet. Required have zmq work well with deallocating many sockets
-        num_eagains = 0
         # if we're given the NOBLOCK flag act as normal and let the EAGAIN get raised
         if flags & zmq.NOBLOCK:
             return super(Socket, self).send(data, flags, copy, track)
@@ -113,15 +108,10 @@ class _Socket(_original_Socket):
                 # if the raised ZMQError is not EAGAIN, reraise
                 if e.errno != zmq.EAGAIN:
                     raise
-                # if this is our first time seeing EAGAIN, avoid calling _wait_write just yet
-                if num_eagains < NUM_EAGAINS_BEFORE_DEFER:
-                    num_eagains += 1
-                    continue
-            # at this point we've seen enough EAGAINs, defer to the event loop until we're notified the socket is writable
+            # defer to the event loop until we're notified the socket is writable
             self._wait_write()
 
     def recv(self, flags=0, copy=True, track=False):
-        num_eagains = 0
         if flags & zmq.NOBLOCK:
             return super(Socket, self).recv(flags, copy, track)
         flags |= zmq.NOBLOCK
@@ -131,7 +121,4 @@ class _Socket(_original_Socket):
             except zmq.ZMQError, e:
                 if e.errno != zmq.EAGAIN:
                     raise
-                if num_eagains < NUM_EAGAINS_BEFORE_DEFER:
-                    num_eagains += 1
-                    continue
             self._wait_read()
