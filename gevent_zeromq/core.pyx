@@ -33,12 +33,10 @@ cdef class _Context(_original_Context):
 cdef class _Socket(_original_Socket):
     """Green version of :class:`zmq.core.socket.Socket`
 
-    The following four methods are overridden:
+    The following methods are overridden:
 
-        * _send_message
-        * _send_copy
-        * _recv_message
-        * _recv_copy
+        * send
+        * recv
 
     To ensure that the ``zmq.NOBLOCK`` flag is set and that sending or recieving
     is deferred to the hub if a ``zmq.EAGAIN`` (retry) error is raised.
