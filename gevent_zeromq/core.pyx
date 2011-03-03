@@ -41,7 +41,7 @@ cdef class _Socket(_original_Socket):
     To ensure that the ``zmq.NOBLOCK`` flag is set and that sending or recieving
     is deferred to the hub if a ``zmq.EAGAIN`` (retry) error is raised.
     
-    The `__setup_events` method is triggered when the zmq.FD for the socket is
+    The `__state_changed` method is triggered when the zmq.FD for the socket is
     marked as readable and triggers the necessary read and write events (which
     are waited for in the recv and send methods).
 
