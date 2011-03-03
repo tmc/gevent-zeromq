@@ -53,12 +53,12 @@ cdef class _Socket(_original_Socket):
     cdef object _state_event
 
     def __init__(self, _Context context, int socket_type):
-        super(Socket, self).__init__(context, socket_type)
+        super(_Socket, self).__init__(context, socket_type)
         self.__setup_events()
 
     def close(self):
         # close the _state_event event, keeps the number of active file descriptors down
-        super(Socket, self).close()
+        super(_Socket, self).close()
         if hasattr(self, '_state_event'):
             self._state_event.cancel()
 

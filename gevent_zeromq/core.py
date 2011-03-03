@@ -48,13 +48,13 @@ class _Socket(_original_Socket):
     """
 
     def __init__(self, context, socket_type):
-        super(Socket, self).__init__(context, socket_type)
+        super(_Socket, self).__init__(context, socket_type)
         self.__setup_events()
 
     def close(self):
         # close the _state_event event and delete it, keeps the number of
         # of active file descriptors down
-        super(Socket, self).close()
+        super(_Socket, self).close()
         if hasattr(self, '_state_event'):
             self._state_event.cancel()
             del(self._state_event)
@@ -95,13 +95,13 @@ class _Socket(_original_Socket):
     def send(self, data, flags=0, copy=True, track=False):
         # if we're given the NOBLOCK flag act as normal and let the EAGAIN get raised
         if flags & zmq.NOBLOCK:
-            return super(Socket, self).send(data, flags, copy, track)
+            return super(_Socket, self).send(data, flags, copy, track)
         # ensure the zmq.NOBLOCK flag is part of flags
         flags |= zmq.NOBLOCK
         while True: # Attempt to complete this operation indefinitely, blocking the current greenlet
             try:
                 # attempt the actual call
-                return super(Socket, self).send(data, flags, copy, track)
+                return super(_Socket, self).send(data, flags, copy, track)
             except zmq.ZMQError, e:
                 # if the raised ZMQError is not EAGAIN, reraise
                 if e.errno != zmq.EAGAIN:
@@ -111,11 +111,11 @@ class _Socket(_original_Socket):
 
     def recv(self, flags=0, copy=True, track=False):
         if flags & zmq.NOBLOCK:
-            return super(Socket, self).recv(flags, copy, track)
+            return super(_Socket, self).recv(flags, copy, track)
         flags |= zmq.NOBLOCK
         while True:
             try:
-                return super(Socket, self).recv(flags, copy, track)
+                return super(_Socket, self).recv(flags, copy, track)
             except zmq.ZMQError, e:
                 if e.errno != zmq.EAGAIN:
                     raise
