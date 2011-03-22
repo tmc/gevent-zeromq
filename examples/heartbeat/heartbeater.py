@@ -26,9 +26,9 @@ from gevent_zeromq import zmq
 class HeartBeater(object):
     """A basic HeartBeater class"""
 
-    def __init__(self, period=1, check_xreq=False):
+    def __init__(self, period=1, check_xrep=False):
         self.period = period
-        self.check_xreq = check_xreq
+        self.check_xrep = check_xrep
 
         self.hearts = set()
         self.responses = set()
@@ -45,16 +45,16 @@ class HeartBeater(object):
     def run(self):
         self.beating = True
         gevent.spawn(self.log_beating_hearts)
-        if self.check_xreq:
-            gevent.spawn_later(1, self.check_xreq_state)
+        if self.check_xrep:
+            gevent.spawn_later(1, self.check_xrep_state)
         else:
-            gevent.spawn_raw(self.recv_hearts_no_xreq_state_check)
+            gevent.spawn_raw(self.recv_hearts_no_xrep_state_check)
         gevent.spawn_later(2, self.beat)
 
         while self.beating:
             gevent.sleep(5)
 
-    def check_xreq_state(self):
+    def check_xrep_state(self):
         while True:
             events = self.xrep.getsockopt(zmq.EVENTS)
             if (events & zmq.POLLIN):
@@ -81,7 +81,7 @@ class HeartBeater(object):
                 break
         gevent.spawn_later(0.001, self.handle_pong, buffer)
 
-    def recv_hearts_no_xreq_state_check(self):
+    def recv_hearts_no_xrep_state_check(self):
         buffer = []
         while True:
             message = self.xrep.recv()
@@ -128,10 +128,10 @@ class HeartBeater(object):
             print "got bad heartbeat (possibly old?): %s"%msg[1]
 
 if __name__ == '__main__':
-    if len(sys.argv) > 1 and sys.argv[1]=='check_xreq':
-        hb = HeartBeater(check_xreq=True)
+    if len(sys.argv) > 1 and sys.argv[1]=='check_xrep':
+        hb = HeartBeater(check_xrep=True)
     else:
-        hb = HeartBeater(check_xreq=False)
+        hb = HeartBeater(check_xrep=False)
     try:
         hb.run()
     except (KeyboardInterrupt, SystemExit):
