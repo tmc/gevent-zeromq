@@ -4,63 +4,59 @@ and runs a blocking numpy action. The rep socket should
 remain responsive to pings during this time. Use heartbeater.py to
 ping this heart, and see the responsiveness.
 
+This example uses ThreadDevice, while the device will work correctly, gevent
+won't, in this case numpy will block the current thread until finished which is
+also the gevent thread. A proper example is show on green_heart.py where both,
+numpy calculation and gevent, are kept responsive.
+
 Authors
 -------
 * MinRK
 * Pedro Algarvio
 """
 
-import sys
-
-if __name__ == '__main__':
-    run_on_gevent = sys.argv[1] == 'gevent'
-    if run_on_gevent:
-#        from gevent import monkey
-##        monkey.patch_all()
-#        monkey.patch_socket()
-        import gevent
-        from gevent_zeromq import zmq
-        print 'Starting gevent heart'
-    else:
-        print 'Starting regular heart'
-        import zmq
-
 import os
 import time
 import numpy
-from zmq import devices
+import gevent
+import threading
+import gevent_zeromq
+gevent_zeromq.monkey_patch(zmq_devices=True)
 
-def start_device():
-    dev = devices.ThreadDevice(zmq.FORWARDER, zmq.SUB, zmq.XREQ)
-    dev.setsockopt_in(zmq.SUBSCRIBE, "")
-    dev.setsockopt_out(zmq.IDENTITY, str(os.getpid()))
-    dev.connect_in('tcp://127.0.0.1:5555')
-    dev.connect_out('tcp://127.0.0.1:5556')
-    dev.start()
+from gevent_zeromq import zmq
+from gevent_zeromq.devices import ThreadDevice
 
-def start_blocking_call(A):
+
+def im_alive(t=None):
+    print "I'm alive!"
+    if t:
+        gevent.spawn_later(t, im_alive, t)
+
+def run_blocking_call(A):
+    print "starting blocking loop"
     tic = time.time()
     numpy.dot(A,A.transpose())
     print "blocked for %.3f s"%(time.time()-tic)
 
 
 if __name__ == '__main__':
-    start_device()
-    #wait for connections
-    if run_on_gevent:
-        gevent.sleep(1)
-    else:
-        time.sleep(1)
 
+    dev = ThreadDevice(zmq.FORWARDER, zmq.SUB, zmq.XREQ)
+    dev.setsockopt_in(zmq.SUBSCRIBE, "")
+    dev.setsockopt_out(zmq.IDENTITY, str(os.getpid()))
+    dev.connect_in('tcp://127.0.0.1:5555')
+    dev.connect_out('tcp://127.0.0.1:5556')
+#    dev.start()
+    gevent.spawn_raw(dev.start)
+    gevent.spawn_later(0, im_alive, 5)
+    gevent.sleep(0)
 
-    A = numpy.random.random((2**11,2**11))
-    try:
-        print "starting blocking loop"
-        while True:
-            if run_on_gevent:
-                gevent.spawn(start_blocking_call, A).join()
-            else:
-                start_blocking_call()
-    except KeyboardInterrupt:
-        print 'Exiting'
-        sys.exit()
+    A = numpy.random.random((2**11, 2**11))
+    while True:
+        try:
+            run_blocking_call(A)
+            print 'Sleeping'
+            gevent.sleep(1)
+        except KeyboardInterrupt:
+            print 'Exiting'
+            break
