@@ -6,7 +6,7 @@ import gevent_zeromq.core as zmq
 zmq.Context = zmq._Context
 zmq.Socket = zmq._Socket
 
-def monkey_patch(test_suite=False, zmq_devices=False):
+def monkey_patch(test_suite=False):
     """
     Monkey patches `zmq.Context` and `zmq.Socket`
 
