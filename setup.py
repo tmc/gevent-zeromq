@@ -1,20 +1,18 @@
 import os
 import sys
 from glob import glob
+from distutils.core import Command, Extension, setup
+from distutils.command.build_ext import build_ext
 from traceback import print_exc
 
 cython_available = False
 try:
-    from setuptools import setup
-    from setuptools import Command
     from Cython.Distutils import build_ext
     from Cython.Distutils.extension import Extension
     cython_available = True
-
 except ImportError, e:
     print 'WARNING: cython not available, proceeding with pure python implementation. (%s)' % e
-    from setuptools.core import Command, Extension, setup
-    from setuptools.command.build_ext import build_ext
+    pass
 
 
 try:
@@ -35,17 +33,13 @@ def get_ext_modules():
         print 'WARNING: pyzmq(>=2.1.0) must be installed to build cython version of gevent-zeromq (%s).', e
         return []
 
-    extension = Extension(
+    return Extension(
         'gevent_zeromq.core',
         ['gevent_zeromq/core.pyx'],
         include_dirs = zmq.get_includes() + [
             os.path.dirname(os.path.dirname(zmq.__file__))
         ]
     )
-
-    if extension.sources == ['gevent_zeromq/core.c']:
-        extension.sources = ['gevent_zeromq/core.pyx']
-    return [extension]
 
 
 class TestCommand(Command):
