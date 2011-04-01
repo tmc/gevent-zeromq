@@ -33,14 +33,34 @@ def get_ext_modules():
         print 'WARNING: pyzmq(>=2.1.0) must be installed to build cython version of gevent-zeromq (%s).', e
         return []
 
-    return Extension(
+    return [Extension(
         'gevent_zeromq.core',
         ['gevent_zeromq/core.pyx'],
         include_dirs = zmq.get_includes() + [
             os.path.dirname(os.path.dirname(zmq.__file__))
         ]
-    )
+    )]
 
+
+class DevelopCommand(Command):
+    """Fake develop command just to tell the user how to use the lib in
+    develop mode"""
+
+    user_options = [ ]
+
+    def initialize_options(self):
+        pass
+
+    def finalize_options(self):
+        pass
+
+    def run(self):
+        print
+        print "While there's a bug in Cython's distutils, in order to use "
+        print "the library in develop mode please do:"
+        print "    python setup.py build_ext --inplace"
+        print "    python setupegg.py develop"
+        print
 
 class TestCommand(Command):
     """Custom distutils command to run the test suite."""
@@ -96,13 +116,22 @@ if cython_available:
 else:
     ext_modules = []
 
+
 __version__ = (0, 0, 2)
+
+cmdclass = {
+    'build_ext': build_ext,
+    'test': TestCommand,
+}
+
+if 'setupegg.py' not in sys.argv:
+    cmdclass['develop'] = DevelopCommand
 
 setup(
     name = 'gevent_zeromq',
     version = '.'.join([str(x) for x in __version__]),
     packages = ['gevent_zeromq'],
-    cmdclass = {'build_ext': build_ext, 'test': TestCommand},
+    cmdclass = cmdclass,
     ext_modules = ext_modules,
     author = 'Travis Cline',
     author_email = 'travis.cline@gmail.com',
