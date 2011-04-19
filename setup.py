@@ -39,7 +39,6 @@ def get_ext_modules():
         ),
     ]
 
-
 class TestCommand(Command):
     """Custom distutils command to run the test suite."""
 
@@ -104,5 +103,9 @@ setup(
     ext_modules = ext_modules,
     author = 'Travis Cline',
     author_email = 'travis.cline@gmail.com',
+    url = 'http://github.com/traviscline/gevent-zeromq',
     description = 'gevent compatibility layer for pyzmq',
+    long_description=open('README.rst').read(),
+    install_requires = ['pyzmq>=2.1.0', 'gevent'],
+    license = 'New BSD',
 )
