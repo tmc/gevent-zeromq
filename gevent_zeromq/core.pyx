@@ -95,7 +95,7 @@ cdef class _Socket(_original_Socket):
         self.__readable.clear()
         self.__readable.wait()
 
-    def send(self, object data, int flags=0, bint copy=True, bint track=False):
+    cpdef object send(self, object data, int flags=0, copy=True, track=False):
         # if we're given the NOBLOCK flag act as normal and let the EAGAIN get raised
         if flags & zmq.NOBLOCK:
             return _original_Socket.send(self, data, flags, copy, track)
@@ -112,7 +112,7 @@ cdef class _Socket(_original_Socket):
             # defer to the event loop until we're notified the socket is writable
             self._wait_write()
 
-    def recv(self, int flags=0, bint copy=True, bint track=False):
+    cpdef object recv(self, int flags=0, copy=True, track=False):
         if flags & zmq.NOBLOCK:
             return _original_Socket.recv(self, flags, copy, track)
         flags = flags | NOBLOCK

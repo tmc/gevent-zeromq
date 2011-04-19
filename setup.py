@@ -43,7 +43,7 @@ def get_ext_modules():
 class TestCommand(Command):
     """Custom distutils command to run the test suite."""
 
-    user_options = [ ]
+    user_options = []
 
     def initialize_options(self):
         pass
@@ -94,7 +94,7 @@ if cython_available:
 else:
     ext_modules = []
 
-__version__ = (0, 0, 2)
+__version__ = (0, 0, 3)
 
 setup(
     name = 'gevent_zeromq',
