@@ -1,4 +1,11 @@
+import gevent
 from gevent_zeromq import zmq
+
+try:
+    from gevent_utils import BlockingDetector
+    gevent.spawn(BlockingDetector(5))
+except ImportError:
+    print 'If you encounter hangs consider installing gevent_utils'
 
 def monkey_patch_test_suite():
     """
@@ -26,6 +33,17 @@ def monkey_patch_test_suite():
     got '%s'" % (zmq.ZMQError(errno), zmq.ZMQError(e.errno)))
             else:
                 self.fail("Function did not raise any error")
+
+        def tearDown(self):
+            contexts = set([self.context])
+            while self.sockets:
+                sock = self.sockets.pop()
+                contexts.add(sock.context) # in case additional contexts are created
+                sock.close()
+            try:
+                gevent.joinall([gevent.spawn(ctx.term) for ctx in contexts], timeout=2, raise_error=True)
+            except gevent.Timeout:
+                raise RuntimeError("context could not terminate, open sockets likely remain in test")
 
     zmqtests.BaseZMQTestCase = GreenBaseZMQTestCase
     

@@ -50,23 +50,6 @@ class TestCommand(Command):
     def finalize_options(self):
         pass
 
-    def run_nose(self):
-        """Run the test suite with nose."""
-        return nose.core.TestProgram(argv=["", '-vvs', os.path.join(self._zmq_dir, 'tests')])
-    
-    def run_unittest(self):
-        """Finds all the tests modules in zmq/tests/ and runs them."""
-        testfiles = [ ]
-        for t in glob(os.path.join(self._zmq_dir, 'tests', '*.py')):
-            name = os.path.splitext(os.path.basename(t))[0]
-            if name.startswith('test_'):
-                testfiles.append('.'.join(
-                    ['zmq.tests', name])
-                )
-        tests = TestLoader().loadTestsFromNames(testfiles)
-        t = TextTestRunner(verbosity = 2)
-        t.run(tests)
-
     def run(self):
         # crude check for inplace build:
         try:
@@ -74,7 +57,7 @@ class TestCommand(Command):
         except ImportError:
             print_exc()
             print ("Could not import gevent_zeromq!")
-            print ("You must build pyzmq with 'python setup.py build_ext --inplace' for 'python setup.py test' to work.")
+            print ("You must build gevent_zeromq with 'python setup.py build_ext --inplace' for 'python setup.py test' to work.")
             print ("If you did build gevent_zeromq in-place, then this is a real error.")
             sys.exit(1)
 
@@ -83,10 +66,9 @@ class TestCommand(Command):
         self._zmq_dir = os.path.dirname(zmq.__file__)
 
         if nose is None:
-            print ("nose unavailable, falling back on unittest. Skipped tests will appear as ERRORs.")
-            return self.run_unittest()
+            print ("nose unavailable, skipping tests.")
         else:
-            return self.run_nose()
+            return nose.core.TestProgram(argv=["", '-vvs', os.path.join(self._zmq_dir, 'tests')])
 
 if cython_available:
     ext_modules = get_ext_modules()
