@@ -1,7 +1,7 @@
 import os
 import sys
-from glob import glob
-from distutils.core import Command, Extension, setup
+
+from distutils.core import Command, setup
 from distutils.command.build_ext import build_ext
 from traceback import print_exc
 
@@ -20,6 +20,8 @@ except ImportError:
     nose = None
 
 def get_ext_modules():
+    if not cython_available:
+        return []
 
     try:
         import gevent
@@ -31,13 +33,8 @@ def get_ext_modules():
     except ImportError, e:
         print 'WARNING: pyzmq(>=2.1.0) must be installed to build cython version of gevent-zeromq (%s).', e
         return []
-    return [
-        Extension(
-            'gevent_zeromq.core',
-            ['gevent_zeromq/core.pyx'],
-            include_dirs = zmq.get_includes() + [os.path.dirname(os.path.dirname(zmq.__file__))]
-        ),
-    ]
+
+    return [Extension('gevent_zeromq.core', ['gevent_zeromq/core.pyx'], include_dirs=zmq.get_includes())]
 
 class TestCommand(Command):
     """Custom distutils command to run the test suite."""
@@ -70,19 +67,14 @@ class TestCommand(Command):
         else:
             return nose.core.TestProgram(argv=["", '-vvs', os.path.join(self._zmq_dir, 'tests')])
 
-if cython_available:
-    ext_modules = get_ext_modules()
-else:
-    ext_modules = []
-
-__version__ = (0, 0, 3)
+__version__ = (0, 0, 4)
 
 setup(
     name = 'gevent_zeromq',
     version = '.'.join([str(x) for x in __version__]),
     packages = ['gevent_zeromq'],
     cmdclass = {'build_ext': build_ext, 'test': TestCommand},
-    ext_modules = ext_modules,
+    ext_modules = get_ext_modules(),
     author = 'Travis Cline',
     author_email = 'travis.cline@gmail.com',
     url = 'http://github.com/traviscline/gevent-zeromq',
