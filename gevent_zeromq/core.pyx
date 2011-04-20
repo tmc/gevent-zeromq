@@ -10,6 +10,14 @@ from zmq.core.socket cimport Socket as _original_Socket
 from gevent.event import Event
 from gevent.hub import get_hub
 
+# make lookups of these be straight c ints
+cdef int NOBLOCK = zmq.NOBLOCK
+cdef int EAGAIN = zmq.EAGAIN
+cdef int EVENTS = zmq.EVENTS
+cdef int ENOTSUP = zmq.ENOTSUP
+cdef int FD = zmq.FD
+cdef int POLLIN = zmq.POLLIN
+cdef int POLLOUT = zmq.POLLOUT
 
 cdef class _Socket(_original_Socket)
 
@@ -67,12 +75,12 @@ cdef class _Socket(_original_Socket):
         self.__writable = Event()
         try:
             read_event = get_hub().reactor.read_event
-            self._state_event = read_event(self.getsockopt(zmq.FD), persist=True)
+            self._state_event = read_event(self.getsockopt(FD), persist=True)
             self._state_event.add(None, self.__state_changed)
         except AttributeError:
             # for gevent<=0.14 compatibility
             from gevent.core import read_event
-            self._state_event = read_event(self.getsockopt(zmq.FD), self.__state_changed, persist=True)
+            self._state_event = read_event(self.getsockopt(FD), self.__state_changed, persist=True)
 
     def __state_changed(self, event, _evtype):
         if self.closed:
@@ -81,10 +89,10 @@ cdef class _Socket(_original_Socket):
             self.__readable.set()
             return
 
-        events = self.getsockopt(zmq.EVENTS)
-        if events & zmq.POLLOUT:
+        cdef int events = self.getsockopt(EVENTS)
+        if events & POLLOUT:
             self.__writable.set()
-        if events & zmq.POLLIN:
+        if events & POLLIN:
             self.__readable.set()
 
     cdef _wait_write(self) with gil:
@@ -97,7 +105,7 @@ cdef class _Socket(_original_Socket):
 
     cpdef object send(self, object data, int flags=0, copy=True, track=False):
         # if we're given the NOBLOCK flag act as normal and let the EAGAIN get raised
-        if flags & zmq.NOBLOCK:
+        if flags & NOBLOCK:
             return _original_Socket.send(self, data, flags, copy, track)
         # ensure the zmq.NOBLOCK flag is part of flags
         flags = flags | NOBLOCK
@@ -105,21 +113,21 @@ cdef class _Socket(_original_Socket):
             try:
                 # attempt the actual call
                 return _original_Socket.send(self, data, flags, copy, track)
-            except zmq.ZMQError, e:
+            except ZMQError, e:
                 # if the raised ZMQError is not EAGAIN, reraise
-                if e.errno != zmq.EAGAIN:
+                if e.errno != EAGAIN:
                     raise
             # defer to the event loop until we're notified the socket is writable
             self._wait_write()
 
     cpdef object recv(self, int flags=0, copy=True, track=False):
-        if flags & zmq.NOBLOCK:
+        if flags & NOBLOCK:
             return _original_Socket.recv(self, flags, copy, track)
         flags = flags | NOBLOCK
         while True:
             try:
                 return _original_Socket.recv(self, flags, copy, track)
             except ZMQError, e:
-                if e.errno != zmq.EAGAIN:
+                if e.errno != EAGAIN:
                     raise
             self._wait_read()
