@@ -124,7 +124,7 @@ cmdclass = {
     'test': TestCommand,
 }
 
-if 'setupegg.py' not in sys.argv:
+if __file__ != 'setupegg.py':
     cmdclass['develop'] = DevelopCommand
 
 setup(
