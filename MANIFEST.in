@@ -1,0 +1,3 @@
+include README.rst
+include gevent_zeromq/core.c
+recursive-include examples *py

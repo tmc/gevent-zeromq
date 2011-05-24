@@ -63,15 +63,14 @@ class _Socket(_original_Socket):
         self.__readable = Event()
         self.__writable = Event()
         try:
-            read_event = get_hub().reactor.read_event
-            self._state_event = read_event(self.getsockopt(zmq.FD), persist=True)
-            self._state_event.add(None, self.__state_changed)
+            read_event = get_hub().loop.io(self.getsockopt(FD), 1) # read state watcher
+            read_event.start(self.__state_changed)
         except AttributeError:
             # for gevent<=0.14 compatibility
             from gevent.core import read_event
-            self._state_event = read_event(self.getsockopt(zmq.FD), self.__state_changed, persist=True)
+            self._state_event = read_event(self.getsockopt(FD), self.__state_changed, persist=True)
 
-    def __state_changed(self, event, _evtype):
+    def __state_changed(self, event=None, _evtype=None):
         if self.closed:
             # if the socket has entered a close state resume any waiting greenlets
             self.__writable.set()

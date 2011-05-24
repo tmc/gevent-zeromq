@@ -3,3 +3,5 @@
 *.o
 *.so
 /build/
+/dist/
+MANIFEST
