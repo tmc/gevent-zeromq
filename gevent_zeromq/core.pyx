@@ -10,14 +10,6 @@ from zmq.core.socket cimport Socket as _original_Socket
 from gevent.event import Event
 from gevent.hub import get_hub
 
-# make lookups of these be straight c ints
-cdef int NOBLOCK = zmq.NOBLOCK
-cdef int EAGAIN = zmq.EAGAIN
-cdef int EVENTS = zmq.EVENTS
-cdef int ENOTSUP = zmq.ENOTSUP
-cdef int FD = zmq.FD
-cdef int POLLIN = zmq.POLLIN
-cdef int POLLOUT = zmq.POLLOUT
 
 cdef class _Socket(_original_Socket)
 
