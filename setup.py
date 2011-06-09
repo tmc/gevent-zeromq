@@ -67,7 +67,7 @@ class TestCommand(Command):
         else:
             return nose.core.TestProgram(argv=["", '-vvs', os.path.join(self._zmq_dir, 'tests')])
 
-__version__ = (0, 0, 4)
+__version__ = (0, 1, 0)
 
 setup(
     name = 'gevent_zeromq',
