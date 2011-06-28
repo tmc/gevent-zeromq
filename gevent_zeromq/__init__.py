@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """gevent_zmq - gevent compatibility with zeromq.
 
 Usage
