@@ -50,7 +50,7 @@ cdef class _Socket(_original_Socket):
     """
     cdef object __readable
     cdef object __writable
-    cdef object _state_event
+    cdef public object _state_event
 
     def __init__(self, _Context context, int socket_type):
         super(_Socket, self).__init__(context, socket_type)
@@ -58,18 +58,22 @@ cdef class _Socket(_original_Socket):
 
     def close(self):
         # close the _state_event event, keeps the number of active file descriptors down
+        if not self.closed and getattr(self, '_state_event', None):
+            try:
+                self._state_event.stop()
+            except AttributeError, e:
+                # gevent<1.0 compat
+                self._state_event.cancel()
         super(_Socket, self).close()
-        if hasattr(self, '_state_event'):
-            self._state_event.cancel()
 
     cdef __setup_events(self) with gil:
         self.__readable = Event()
         self.__writable = Event()
         try:
-            read_event = get_hub().loop.io(self.getsockopt(FD), 1) # read state watcher
-            read_event.start(self.__state_changed)
-        except AttributeError:
-            # for gevent<=0.14 compatibility
+            self._state_event = get_hub().loop.io(self.getsockopt(FD), 1) # read state watcher
+            self._state_event.start(self.__state_changed)
+        except AttributeError, e:
+            # for gevent<1.0 compatibility
             from gevent.core import read_event
             self._state_event = read_event(self.getsockopt(FD), self.__state_changed, persist=True)
 
