@@ -58,7 +58,7 @@ cdef class _Socket(_original_Socket):
 
     def close(self):
         # close the _state_event event, keeps the number of active file descriptors down
-        if not self.closed and getattr(self, '_state_event', None):
+        if not self.closed and getattr3(self, '_state_event', None):
             try:
                 self._state_event.stop()
             except AttributeError, e:
