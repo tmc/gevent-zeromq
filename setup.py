@@ -1,18 +1,44 @@
 import os
 import sys
 
-from distutils.core import Command, setup
+	
+
+try:
+    from setuptools import setup
+except ImportError:
+    from distutils.core import setup
+
+from distutils.core import Command
 from distutils.command.build_ext import build_ext
 from traceback import print_exc
 
 cython_available = False
+
 try:
-    from Cython.Distutils import build_ext
-    from Cython.Distutils.extension import Extension
-    cython_available = True
-except ImportError, e:
-    print 'WARNING: cython not available, proceeding with pure python implementation. (%s)' % e
-    pass
+    disable_cython = '--disable-cython' in sys.argv
+    sys.argv.remove('--disable-cython')
+except ValueError:
+    disable_cython = False
+
+if not disable_cython:
+    try:
+        from Cython.Distutils import build_ext
+        from Cython.Distutils.extension import Extension
+        cython_available = True
+    except ImportError, e:
+        print 'WARNING: cython not available, proceeding with pure python implementation. (%s)' % e
+        pass
+
+try:
+    prefer_pyzmq_static = '--prefer-pyzmq-static' in sys.argv
+    sys.argv.remove('--prefer-pyzmq-static')
+except ValueError:
+    prefer_pyzmq_static = False
+
+if prefer_pyzmq_static:
+    pyzmq_dependency = 'pyzmq-static'
+else:
+    pyzmq_dependency = 'pyzmq'
 
 try:
     import nose
@@ -34,7 +60,7 @@ def get_ext_modules():
         print 'WARNING: pyzmq(>=2.1.0) must be installed to build cython version of gevent-zeromq (%s).', e
         return []
 
-    return [Extension('gevent_zeromq.core', ['gevent_zeromq/core.pyx'], include_dirs=zmq.get_includes())]
+    return [Extension('gevent_zeromq.core', ['./gevent_zeromq/core.pyx'], include_dirs=zmq.get_includes())]
 
 class TestCommand(Command):
     """Custom distutils command to run the test suite."""
@@ -80,6 +106,6 @@ setup(
     url = 'http://github.com/traviscline/gevent-zeromq',
     description = 'gevent compatibility layer for pyzmq',
     long_description=open('README.rst').read(),
-    install_requires = ['pyzmq>=2.1.0', 'gevent'],
+    install_requires = [pyzmq_dependency + '>=2.1.0', 'gevent'],
     license = 'New BSD',
 )
