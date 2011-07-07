@@ -1,13 +1,7 @@
 import os
 import sys
 
-	
-
-try:
-    from setuptools import setup
-except ImportError:
-    from distutils.core import setup
-
+from distutils.core import setup
 from distutils.core import Command
 from distutils.command.build_ext import build_ext
 from traceback import print_exc
@@ -57,10 +51,10 @@ def get_ext_modules():
     try:
         import zmq
     except ImportError, e:
-        print 'WARNING: pyzmq(>=2.1.0) must be installed to build cython version of gevent-zeromq (%s).', e
+        print 'WARNING: pyzmq or pyzmq-static (>=2.1.0) must be installed to build cython version of gevent-zeromq (%s).', e
         return []
 
-    return [Extension('gevent_zeromq.core', ['./gevent_zeromq/core.pyx'], include_dirs=zmq.get_includes())]
+    return [Extension('gevent_zeromq.core', ['gevent_zeromq/core.pyx'], include_dirs=zmq.get_includes())]
 
 class TestCommand(Command):
     """Custom distutils command to run the test suite."""
