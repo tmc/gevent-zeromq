@@ -65,12 +65,12 @@ class _Socket(_original_Socket):
         self.__readable = Event()
         self.__writable = Event()
         try:
-            self._state_event = get_hub().loop.io(self.getsockopt(FD), 1) # read state watcher
+            self._state_event = get_hub().loop.io(self.__getsockopt(FD), 1) # read state watcher
             self._state_event.start(self.__state_changed)
         except AttributeError:
             # for gevent<1.0 compatibility
             from gevent.core import read_event
-            self._state_event = read_event(self.getsockopt(FD), self.__state_changed, persist=True)
+            self._state_event = read_event(self.__getsockopt(FD), self.__state_changed, persist=True)
 
     def __state_changed(self, event=None, _evtype=None):
         if self.closed:
@@ -79,7 +79,7 @@ class _Socket(_original_Socket):
             self.__readable.set()
             return
 
-        events = self.getsockopt(zmq.EVENTS)
+        events = self.__getsockopt(zmq.EVENTS)
         if events & zmq.POLLOUT:
             self.__writable.set()
         if events & zmq.POLLIN:
@@ -93,7 +93,20 @@ class _Socket(_original_Socket):
         self.__readable.clear()
         self.__readable.wait()
 
+    def __notify_waiters(self):
+        """Notifies all waiters about a possible change in the socket state.
+        The waiters can try to read or write.
+        """
+        self.__writable.set()
+        self.__readable.set()
+
     def send(self, data, flags=0, copy=True, track=False):
+        try:
+            return self.__send(data, flags, copy, track)
+        finally:
+            self.__notify_waiters()
+
+    def __send(self, data, flags=0, copy=True, track=False):
         # if we're given the NOBLOCK flag act as normal and let the EAGAIN get raised
         if flags & zmq.NOBLOCK:
             return super(_Socket, self).send(data, flags, copy, track)
@@ -108,9 +121,16 @@ class _Socket(_original_Socket):
                 if e.errno != zmq.EAGAIN:
                     raise
             # defer to the event loop until we're notified the socket is writable
+            self.__notify_waiters()
             self._wait_write()
 
     def recv(self, flags=0, copy=True, track=False):
+        try:
+            return self.__recv(flags, copy, track)
+        finally:
+            self.__notify_waiters()
+
+    def __recv(self, flags=0, copy=True, track=False):
         if flags & zmq.NOBLOCK:
             return super(_Socket, self).recv(flags, copy, track)
         flags |= zmq.NOBLOCK
@@ -120,4 +140,14 @@ class _Socket(_original_Socket):
             except zmq.ZMQError, e:
                 if e.errno != zmq.EAGAIN:
                     raise
+            self.__notify_waiters()
             self._wait_read()
+
+    def getsockopt(self, *args, **kw):
+        try:
+            return self.__getsockopt(*args, **kw)
+        finally:
+            self.__notify_waiters()
+
+    def __getsockopt(self, *args, **kw):
+        return _original_Socket.getsockopt(self, *args, **kw)
