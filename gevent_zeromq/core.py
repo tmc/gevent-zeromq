@@ -124,6 +124,18 @@ class _Socket(_original_Socket):
             self.__notify_waiters()
             self._wait_write()
 
+    def send_multipart(self, msg_parts, flags=0, copy=True, track=False):
+        """Sends a multipart message.
+        The send is atomic and possibly blocking.
+        No other greenlet can run in the meantime.
+        """
+        try:
+            for msg in msg_parts[:-1]:
+                _original_Socket.send(self, msg, SNDMORE|flags, copy, track)
+            return _original_Socket.send(self, msg_parts[-1], flags, copy, track)
+        finally:
+            self.__notify_waiters()
+
     def recv(self, flags=0, copy=True, track=False):
         try:
             return self.__recv(flags, copy, track)
