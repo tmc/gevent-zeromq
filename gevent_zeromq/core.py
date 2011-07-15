@@ -10,6 +10,8 @@ from zmq.core.socket import Socket as _original_Socket
 from gevent.event import Event
 from gevent.hub import get_hub
 
+from gevent_zeromq.helpers import allow_unbound_disappear
+
 
 class _Context(_original_Context):
     """Replacement for :class:`zmq.core.context.Context`
@@ -48,29 +50,42 @@ class _Socket(_original_Socket):
     """
 
     def __init__(self, context, socket_type):
+        self._state_event = None
         super(_Socket, self).__init__(context, socket_type)
         self.__setup_events()
 
-    def close(self):
-        # close the _state_event event, keeps the number of active file descriptors down
-        if not self.closed and getattr(self, '_state_event', None):
+    def __del__(self):
+        """Unregisters itself from the event loop.
+        """
+        # We need __del__. We would not be able to access
+        # the object properties inside close() called
+        # from _original_Socket.__dealloc__().
+        if self._state_event is not None:
             try:
                 self._state_event.stop()
             except AttributeError, e:
                 # gevent<1.0 compat
                 self._state_event.cancel()
+            self._state_event = None
+
+    def close(self):
+        # close the _state_event event, keeps the number of active file descriptors down
+        if not self.closed and getattr(self, '_state_event', None):
+            self.__del__()
         super(_Socket, self).close()
 
     def __setup_events(self):
         self.__readable = Event()
         self.__writable = Event()
+        callback = allow_unbound_disappear(
+                _Socket.__state_changed, self, _Socket)
         try:
             self._state_event = get_hub().loop.io(self.__getsockopt(FD), 1) # read state watcher
-            self._state_event.start(self.__state_changed)
+            self._state_event.start(callback)
         except AttributeError:
             # for gevent<1.0 compatibility
             from gevent.core import read_event
-            self._state_event = read_event(self.__getsockopt(FD), self.__state_changed, persist=True)
+            self._state_event = read_event(self.__getsockopt(FD), callback, persist=True)
 
     def __state_changed(self, event=None, _evtype=None):
         if self.closed:
