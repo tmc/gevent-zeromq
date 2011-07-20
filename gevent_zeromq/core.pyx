@@ -7,6 +7,7 @@ from zmq import *
 from zmq.core.context cimport Context as _original_Context
 from zmq.core.socket cimport Socket as _original_Socket
 
+from gevent.coros import Semaphore
 from gevent.event import Event
 from gevent.hub import get_hub
 
@@ -50,6 +51,7 @@ cdef class _Socket(_original_Socket):
     Some doubleunderscore prefixes are used to minimize pollution of
     :class:`zmq.core.socket.Socket`'s namespace.
     """
+    cdef object __send_multipart_semaphore
     cdef object __readable
     cdef object __writable
     cdef object __weakref__
@@ -58,6 +60,7 @@ cdef class _Socket(_original_Socket):
     def __init__(self, _Context context, int socket_type):
         super(_Socket, self).__init__(context, socket_type)
         self.__setup_events()
+        self.__send_multipart_semaphore = Semaphore()
 
     def close(self):
         # close the _state_event event, keeps the number of active file descriptors down
@@ -135,16 +138,12 @@ cdef class _Socket(_original_Socket):
             self._wait_write()
 
     def send_multipart(self, msg_parts, flags=0, copy=True, track=False):
-        """Sends a multipart message.
-        The send is atomic and possibly blocking.
-        No other greenlet can run in the meantime.
-        """
-        try:
-            for msg in msg_parts[:-1]:
-                _original_Socket.send(self, msg, SNDMORE|flags, copy, track)
-            return _original_Socket.send(self, msg_parts[-1], flags, copy, track)
-        finally:
-            self.__notify_waiters()
+        # send_multipart is not greenlet-safe, i.e. message parts might get
+        # split up if multiple greenlets call send_multipart on the same socket.
+        # so we use a semaphore to ensure that there's only ony greenlet
+        # calling send_multipart at any time
+        with self.__send_multipart_semaphore:
+            _original_Socket.send_multipart(self, msg_parts, flags, copy, track)
 
     cpdef object recv(self, int flags=0, copy=True, track=False):
         try:
