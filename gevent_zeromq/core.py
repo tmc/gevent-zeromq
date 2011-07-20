@@ -147,7 +147,7 @@ class _Socket(_original_Socket):
         # so we use a semaphore to ensure that there's only ony greenlet
         # calling send_multipart at any time
         with self.__send_multipart_semaphore:
-            super(_Socket, self).send_multipart(self, msg_parts, flags, copy, track)
+            super(_Socket, self).send_multipart(msg_parts, flags, copy, track)
 
     def recv(self, flags=0, copy=True, track=False):
         try:
