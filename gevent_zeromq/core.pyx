@@ -143,7 +143,7 @@ cdef class _Socket(_original_Socket):
         # so we use a semaphore to ensure that there's only ony greenlet
         # calling send_multipart at any time
         with self.__send_multipart_semaphore:
-            _original_Socket.send_multipart(self, msg_parts, flags, copy, track)
+            return _original_Socket.send_multipart(self, msg_parts, flags, copy, track)
 
     cpdef object recv(self, int flags=0, copy=True, track=False):
         try:
