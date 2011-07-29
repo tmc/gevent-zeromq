@@ -7,7 +7,6 @@ from zmq import *
 from zmq.core.context import Context as _original_Context
 from zmq.core.socket import Socket as _original_Socket
 
-from gevent.coros import Semaphore
 from gevent.event import Event
 from gevent.hub import get_hub
 
@@ -54,7 +53,6 @@ class _Socket(_original_Socket):
         self._state_event = None
         super(_Socket, self).__init__(context, socket_type)
         self.__setup_events()
-        self.__send_multipart_semaphore = Semaphore()
 
     def __del__(self):
         """Unregisters itself from the event loop.
@@ -140,14 +138,6 @@ class _Socket(_original_Socket):
             # defer to the event loop until we're notified the socket is writable
             self.__notify_waiters()
             self._wait_write()
-
-    def send_multipart(self, msg_parts, flags=0, copy=True, track=False):
-        # send_multipart is not greenlet-safe, i.e. message parts might get
-        # split up if multiple greenlets call send_multipart on the same socket.
-        # so we use a semaphore to ensure that there's only ony greenlet
-        # calling send_multipart at any time
-        with self.__send_multipart_semaphore:
-            return super(_Socket, self).send_multipart(msg_parts, flags, copy, track)
 
     def recv(self, flags=0, copy=True, track=False):
         try:
