@@ -52,21 +52,23 @@ class _Socket(_original_Socket):
         self.__setup_events()
 
     def close(self):
-        # close the _state_event event and delete it, keeps the number of
-        # of active file descriptors down
+        # close the _state_event event, keeps the number of active file descriptors down
+        if not self.closed and getattr(self, '_state_event', None):
+            try:
+                self._state_event.stop()
+            except AttributeError, e:
+                # gevent<1.0 compat
+                self._state_event.cancel()
         super(_Socket, self).close()
-        if hasattr(self, '_state_event'):
-            self._state_event.cancel()
-            del(self._state_event)
 
     def __setup_events(self):
         self.__readable = Event()
         self.__writable = Event()
         try:
-            read_event = get_hub().loop.io(self.getsockopt(FD), 1) # read state watcher
-            read_event.start(self.__state_changed)
+            self._state_event = get_hub().loop.io(self.getsockopt(FD), 1) # read state watcher
+            self._state_event.start(self.__state_changed)
         except AttributeError:
-            # for gevent<=0.14 compatibility
+            # for gevent<1.0 compatibility
             from gevent.core import read_event
             self._state_event = read_event(self.getsockopt(FD), self.__state_changed, persist=True)
 
