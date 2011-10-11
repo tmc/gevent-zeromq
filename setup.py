@@ -26,12 +26,12 @@ def get_ext_modules():
     try:
         import gevent
     except ImportError, e:
-        print 'WARNING: gevent must be installed to build cython version of gevent-zeromq (%s).', e
+        print 'WARNING: gevent must be installed to build cython version of gevent-zeromq (%s).' % e
         return []
     try:
         import zmq
     except ImportError, e:
-        print 'WARNING: pyzmq(>=2.1.0) must be installed to build cython version of gevent-zeromq (%s).', e
+        print 'WARNING: pyzmq(>=2.1.0) must be installed to build cython version of gevent-zeromq (%s).' % e
         return []
 
     return [Extension('gevent_zeromq.core', ['gevent_zeromq/core.pyx'], include_dirs=zmq.get_includes())]
