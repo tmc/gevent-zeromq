@@ -10,6 +10,8 @@ from zmq.core.socket cimport Socket as _original_Socket
 from gevent.event import Event
 from gevent.hub import get_hub
 
+from gevent_zeromq.helpers import create_weakmethod
+
 
 cdef class _Socket(_original_Socket)
 
@@ -50,6 +52,7 @@ cdef class _Socket(_original_Socket):
     """
     cdef object __readable
     cdef object __writable
+    cdef object __weakref__
     cdef public object _state_event
 
     def __init__(self, _Context context, int socket_type):
@@ -69,13 +72,14 @@ cdef class _Socket(_original_Socket):
     cdef __setup_events(self) with gil:
         self.__readable = Event()
         self.__writable = Event()
+        callback = create_weakmethod(_Socket.__state_changed, self, _Socket)
         try:
             self._state_event = get_hub().loop.io(self.getsockopt(FD), 1) # read state watcher
-            self._state_event.start(self.__state_changed)
+            self._state_event.start(callback)
         except AttributeError, e:
             # for gevent<1.0 compatibility
             from gevent.core import read_event
-            self._state_event = read_event(self.getsockopt(FD), self.__state_changed, persist=True)
+            self._state_event = read_event(self.getsockopt(FD), callback, persist=True)
 
     def __state_changed(self, event=None, _evtype=None):
         if self.closed:
