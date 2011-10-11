@@ -10,7 +10,7 @@ Inspired by Ben Ford's work on ØMQ support in eventlet.
 Requirements
 ------------
 
-Requires pyzmq>=2.1.0
+Requires pyzmq>=2.1.0 or pyzmq-static>=2.1.0
 
 Before version 2.1.0 (of both ØMQ and pyzmq) the underlying file descriptors
 that this library utilizes were not available.
