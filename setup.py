@@ -11,7 +11,6 @@ try:
     from Cython.Distutils.extension import Extension
     cython_available = True
 except ImportError, e:
-    print 'WARNING: cython not available, proceeding with pure python implementation. (%s)' % e
     pass
 
 try:
@@ -21,8 +20,8 @@ except ImportError:
 
 def get_ext_modules():
     if not cython_available:
+        print 'WARNING: cython not available, proceeding with pure python implementation. (%s)' % e
         return []
-
     try:
         import gevent
     except ImportError, e:
