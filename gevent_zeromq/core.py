@@ -6,7 +6,10 @@ from zmq import *
 # imported with different names as to not have the star import try to to clobber (when building with cython)
 from zmq.core.context import Context as _original_Context
 from zmq.core.socket import Socket as _original_Socket
+from zmq.core.poll import Poller as _original_Poller
 
+import gevent
+import gevent.core
 from gevent.event import Event
 from gevent.hub import get_hub
 
@@ -120,3 +123,99 @@ class _Socket(_original_Socket):
                 if e.errno != zmq.EAGAIN:
                     raise
             self._wait_read()
+
+
+class _Poller(object):
+
+    def __init__(self):
+        self.sockets = {}
+        self.result = []
+        self.event = Event()
+		
+    def register(self, socket, flags=POLLIN|POLLOUT):
+
+        if socket in self.sockets:
+            self.unregister(socket)
+
+        if flags:
+
+            gevent_flags = 0
+            if flags & zmq.POLLIN: gevent_flags |= gevent.core.EV_READ
+            if flags & zmq.POLLOUT: gevent_flags |= gevent.core.EV_WRITE
+
+            try:
+                watcher = get_hub().loop.io(self._get_handle(socket), gevent_flags)
+                watcher.priority = get_hub().loop.MAXPRI
+                watcher.start(self._sockready, socket)
+            except AttributeError, e:
+                from gevent.core import readwrite_event, read_event, write_event
+                if flags & zmq.POLLIN and flags & zmq.POLLOUT :
+                    watcher = readwrite_event(self._get_handle(socket), self._sockready, persist=True, arg=socket)
+                elif flags & zmq.POLLIN:
+                    watcher = read_event(self._get_handle(socket), self._sockready, persist=True, arg=socket)
+                elif flags & zmq.POLLOUT:
+                    watcher = write_event(self._get_handle(socket), self._sockready, persist=True, arg=socket)
+
+            self.sockets[socket] = { 'watcher': watcher, 'flags': flags }
+
+        else:
+            pass
+
+    def modify(self, socket, flags):
+        self.register(socket, flags)
+
+    def unregister(self, socket):
+
+        if not socket in self.sockets:
+            return
+        try:
+            self.sockets[socket]['watcher'].stop()
+        except AttributeError, e:
+            self.sockets[socket]['watcher'].cancel()
+
+
+    def _sockready(self, event, flags):
+
+        zmq_flags = 0	
+        if flags & gevent.core.EV_READ: zmq_flags |= zmq.POLLIN
+        if flags & gevent.core.EV_WRITE: zmq_flags |= zmq.POLLOUT
+
+        self.result.append((event.arg, zmq_flags))
+        print 'event set'
+        self.event.set()
+
+    def _get_handle(self, socket):
+
+        if isinstance(socket, Socket):
+            return socket.getsockopt(FD)
+        if isinstance(socket, int):
+            return socket
+        elif hasattr(socket, 'fileno'):
+            try:
+                return int(socket.fileno())
+            except:
+                raise ValueError('fileno() must return an valid integer fd')
+        else:
+            raise TypeError(
+                "Socket must be a 0MQ socket, an integer fd or have "
+                "a fileno() method: %r" % socket
+            )
+
+
+    def poll(self, timeout=-1):
+
+        if timeout is None:
+            timeout = -1
+        
+        timeout = int(timeout)
+        if timeout < 0:
+            timeout = -1
+
+        self.event.wait(timeout=timeout)
+        res = self.result
+        self.event.clear()
+        self.result = []
+        return res 
+
+
+			

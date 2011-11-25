@@ -22,6 +22,7 @@ to trigger needed events.
 import gevent_zeromq.core as zmq
 zmq.Context = zmq._Context
 zmq.Socket = zmq._Socket
+zmq.Poller = zmq._Poller
 
 def monkey_patch(test_suite=False):
     """
@@ -33,7 +34,8 @@ def monkey_patch(test_suite=False):
     ozmq = __import__('zmq')
     ozmq.Socket = zmq.Socket
     ozmq.Context = zmq.Context
-
+    ozmq.Poller = zmq.Poller
+	
     if test_suite:
         from gevent_zeromq.tests import monkey_patch_test_suite
         monkey_patch_test_suite()
