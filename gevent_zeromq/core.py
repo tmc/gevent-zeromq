@@ -125,7 +125,7 @@ class _Socket(_original_Socket):
             self._wait_read()
 
 
-class _Poller(object):
+class _Poller(_original_Poller):
 
     def __init__(self):
         self.sockets = {}
@@ -176,12 +176,18 @@ class _Poller(object):
 
     def _sockready(self, event, flags):
 
-        zmq_flags = 0	
+        socket = event.arg
+
+        zmq_flags = 0
         if flags & gevent.core.EV_READ: zmq_flags |= zmq.POLLIN
         if flags & gevent.core.EV_WRITE: zmq_flags |= zmq.POLLOUT
 
-        self.result.append((event.arg, zmq_flags))
-        print 'event set'
+        # filter zmq events
+        if isinstance(socket, Socket):
+            events = socket.getsockopt(EVENTS)
+            if not events: return False
+
+        print 'event set for %s' % str(event.arg)
         self.event.set()
 
     def _get_handle(self, socket):
@@ -210,6 +216,7 @@ class _Poller(object):
         timeout = int(timeout)
         if timeout < 0:
             timeout = -1
+
 
         self.event.wait(timeout=timeout)
         res = self.result
