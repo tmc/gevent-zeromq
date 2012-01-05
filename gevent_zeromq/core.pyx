@@ -7,7 +7,7 @@ from zmq import *
 from zmq.core.context cimport Context as _original_Context
 from zmq.core.socket cimport Socket as _original_Socket
 
-from gevent.event import Event
+from gevent.event import AsyncResult
 from gevent.hub import get_hub
 
 
@@ -66,8 +66,8 @@ cdef class _Socket(_original_Socket):
         super(_Socket, self).close()
 
     cdef __setup_events(self) with gil:
-        self.__readable = Event()
-        self.__writable = Event()
+        self.__readable = AsyncResult()
+        self.__writable = AsyncResult()
         try:
             self._state_event = get_hub().loop.io(self.getsockopt(FD), 1) # read state watcher
             self._state_event.start(self.__state_changed)
@@ -83,19 +83,25 @@ cdef class _Socket(_original_Socket):
             self.__readable.set()
             return
 
-        cdef int events = self.getsockopt(EVENTS)
-        if events & POLLOUT:
-            self.__writable.set()
-        if events & POLLIN:
-            self.__readable.set()
+        cdef int events
+        try:
+            events = self.getsockopt(EVENTS)
+        except ZMQError, exc:
+            self.__writable.set_exception(exc)
+            self.__readable.set_exception(exc)
+        else:
+            if events & POLLOUT:
+                self.__writable.set()
+            if events & POLLIN:
+                self.__readable.set()
 
     cdef _wait_write(self) with gil:
-        self.__writable.clear()
-        self.__writable.wait()
+        self.__writable = AsyncResult()
+        self.__writable.get()
 
     cdef _wait_read(self) with gil:
-        self.__readable.clear()
-        self.__readable.wait()
+        self.__readable = AsyncResult()
+        self.__readable.get()
 
     cpdef object send(self, object data, int flags=0, copy=True, track=False):
         # if we're given the NOBLOCK flag act as normal and let the EAGAIN get raised
