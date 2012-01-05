@@ -176,7 +176,7 @@ class _Poller(_original_Poller):
         xlist = None
 
         if timeout > 0:
-            tout = gevent.Timeout.start_new(timeout/1000)
+            tout = gevent.Timeout.start_new(timeout/1000.0)
 
         try:
             # Loop until timeout or events available
@@ -195,6 +195,12 @@ class _Poller(_original_Poller):
                     raise ZMQError(*ex.args)
 
         except gevent.Timeout, t:
+            if t is not tout:
+                raise
             return []
+        finally:
+           if timeout > 0:
+               tout.cancel()
+
 
 			
