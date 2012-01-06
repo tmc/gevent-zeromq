@@ -72,13 +72,12 @@ class _Socket(_original_Socket):
             self._state_event = read_event(self.getsockopt(FD), self.__state_changed, persist=True)
 
     def __state_changed(self, event=None, _evtype=None):
-        if self.closed:
-            # if the socket has entered a close state resume any waiting greenlets
-            self.__writable.set()
-            self.__readable.set()
-            return
-
         try:
+            if self.closed:
+                # if the socket has entered a close state resume any waiting greenlets
+                self.__writable.set()
+                self.__readable.set()
+                return
             events = self.getsockopt(zmq.EVENTS)
         except ZMQError, exc:
             self.__writable.set_exception(exc)
