@@ -7,7 +7,7 @@ from zmq import *
 from zmq.core.context import Context as _original_Context
 from zmq.core.socket import Socket as _original_Socket
 
-from gevent.event import Event
+from gevent.event import AsyncResult
 from gevent.hub import get_hub
 
 
@@ -52,7 +52,7 @@ class _Socket(_original_Socket):
 
     def close(self):
         # close the _state_event event, keeps the number of active file descriptors down
-        if not self.closed and getattr(self, '_state_event', None):
+        if not self._closed and getattr(self, '_state_event', None):
             try:
                 self._state_event.stop()
             except AttributeError, e:
@@ -61,8 +61,8 @@ class _Socket(_original_Socket):
         super(_Socket, self).close()
 
     def __setup_events(self):
-        self.__readable = Event()
-        self.__writable = Event()
+        self.__readable = AsyncResult()
+        self.__writable = AsyncResult()
         try:
             self._state_event = get_hub().loop.io(self.getsockopt(FD), 1) # read state watcher
             self._state_event.start(self.__state_changed)
@@ -72,25 +72,29 @@ class _Socket(_original_Socket):
             self._state_event = read_event(self.getsockopt(FD), self.__state_changed, persist=True)
 
     def __state_changed(self, event=None, _evtype=None):
-        if self.closed:
-            # if the socket has entered a close state resume any waiting greenlets
-            self.__writable.set()
-            self.__readable.set()
-            return
-
-        events = self.getsockopt(zmq.EVENTS)
-        if events & zmq.POLLOUT:
-            self.__writable.set()
-        if events & zmq.POLLIN:
-            self.__readable.set()
+        try:
+            if self.closed:
+                # if the socket has entered a close state resume any waiting greenlets
+                self.__writable.set()
+                self.__readable.set()
+                return
+            events = self.getsockopt(zmq.EVENTS)
+        except ZMQError, exc:
+            self.__writable.set_exception(exc)
+            self.__readable.set_exception(exc)
+        else:
+            if events & zmq.POLLOUT:
+                self.__writable.set()
+            if events & zmq.POLLIN:
+                self.__readable.set()
 
     def _wait_write(self):
-        self.__writable.clear()
-        self.__writable.wait()
+        self.__writable = AsyncResult()
+        self.__writable.get()
 
     def _wait_read(self):
-        self.__readable.clear()
-        self.__readable.wait()
+        self.__readable = AsyncResult()
+        self.__readable.get()
 
     def send(self, data, flags=0, copy=True, track=False):
         # if we're given the NOBLOCK flag act as normal and let the EAGAIN get raised
