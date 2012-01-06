@@ -20,7 +20,7 @@ except ImportError:
 
 def get_ext_modules():
     if not cython_available:
-        print 'WARNING: cython not available, proceeding with pure python implementation. (%s)' % e
+        print 'WARNING: cython not available, proceeding with pure python implementation.'
         return []
     try:
         import gevent
@@ -66,7 +66,7 @@ class TestCommand(Command):
         else:
             return nose.core.TestProgram(argv=["", '-vvs', os.path.join(self._zmq_dir, 'tests')])
 
-__version__ = (0, 2, 1)
+__version__ = (0, 2, 2)
 
 setup(
     name = 'gevent_zeromq',
