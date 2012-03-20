@@ -34,13 +34,15 @@ Poller = GreenPoller
 def monkey_patch():
     """
     Monkey patches `zmq.Context` and `zmq.Socket`
-    
+
     If test_suite is True, the pyzmq test suite will be patched for
     compatibility as well.
     """
     ozmq = __import__('zmq')
-    ozmq.Socket = zmq.GreenSocket
-    ozmq.Context = zmq.GreenContext
-    ozmq.Poller = GreenPoller
+    ozmq.Socket = zmq.Socket
+    ozmq.Context = zmq.Context
+    ozmq.Poller = zmq.Poller
+    ioloop = __import__('zmq.eventloop.ioloop')
+    ioloop.Poller = zmq.Poller
 
 __all__ = zmq.__all__ + ['monkey_patch']
