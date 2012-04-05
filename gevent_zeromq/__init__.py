@@ -20,6 +20,8 @@ to trigger needed events.
 """
 
 import gevent_zeromq.core as zmq
+from zmq import *
+from zmq import devices
 zmq.Context = zmq._Context
 zmq.Socket = zmq._Socket
 
