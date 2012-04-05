@@ -6,6 +6,8 @@ from zmq import *
 # imported with different names as to not have the star import try to to clobber (when building with cython)
 from zmq.core.context import Context as _original_Context
 from zmq.core.socket import Socket as _original_Socket
+from zmq import devices
+from zmq.core import *
 
 from gevent.event import AsyncResult
 from gevent.hub import get_hub
