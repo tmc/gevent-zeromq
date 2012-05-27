@@ -7,8 +7,7 @@ from zmq import *
 from zmq.core.context cimport Context as _original_Context
 from zmq.core.socket cimport Socket as _original_Socket
 
-from gevent.event import AsyncResult
-from gevent.hub import get_hub
+from gevent.hub import get_hub, Waiter
 
 
 cdef class _Socket(_original_Socket)
@@ -66,8 +65,8 @@ cdef class _Socket(_original_Socket):
         super(_Socket, self).close()
 
     cdef __setup_events(self) with gil:
-        self.__readable = AsyncResult()
-        self.__writable = AsyncResult()
+        self.__readable = Waiter()
+        self.__writable = Waiter()
         try:
             self._state_event = get_hub().loop.io(self.getsockopt(FD), 1) # read state watcher
             self._state_event.start(self.__state_changed)
@@ -81,25 +80,25 @@ cdef class _Socket(_original_Socket):
         try:
             if self.closed:
                 # if the socket has entered a close state resume any waiting greenlets
-                self.__writable.set()
-                self.__readable.set()
+                self.__writable.switch()
+                self.__readable.switch()
                 return
             events = self.getsockopt(EVENTS)
         except ZMQError, exc:
-            self.__writable.set_exception(exc)
-            self.__readable.set_exception(exc)
+            self.__writable.throw(exc)
+            self.__readable.throw(exc)
         else:
             if events & POLLOUT:
-                self.__writable.set()
+                self.__writable.switch()
             if events & POLLIN:
-                self.__readable.set()
+                self.__readable.switch()
 
     cdef _wait_write(self) with gil:
-        self.__writable = AsyncResult()
+        self.__writable = Waiter()
         self.__writable.get()
 
     cdef _wait_read(self) with gil:
-        self.__readable = AsyncResult()
+        self.__readable = Waiter()
         self.__readable.get()
 
     cpdef object send(self, object data, int flags=0, copy=True, track=False):
