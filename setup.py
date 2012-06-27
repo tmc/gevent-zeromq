@@ -30,7 +30,7 @@ def get_ext_modules():
     try:
         import zmq
     except ImportError, e:
-        print 'WARNING: pyzmq(>=2.1.0) must be installed to build cython version of gevent-zeromq (%s).' % e
+        print 'WARNING: pyzmq(==2.2.0) must be installed to build cython version of gevent-zeromq (%s).' % e
         return []
 
     return [Extension('gevent_zeromq.core', ['gevent_zeromq/core.pyx'], include_dirs=zmq.get_includes())]
@@ -79,6 +79,6 @@ setup(
     url = 'http://github.com/traviscline/gevent-zeromq',
     description = 'gevent compatibility layer for pyzmq',
     long_description=open('README.rst').read(),
-    install_requires = ['pyzmq>=2.1.0', 'gevent'],
+    install_requires = ['pyzmq==2.2.0', 'gevent'],
     license = 'New BSD',
 )
