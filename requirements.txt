@@ -1,0 +1,4 @@
+pyzmq==2.2.0
+gevent
+cython
+nose
