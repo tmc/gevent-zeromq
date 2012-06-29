@@ -19,11 +19,14 @@ before any blocking operation and the ØMQ file descriptor is polled internally
 to trigger needed events.
 """
 
-import gevent_zeromq.core as zmq
 from zmq import *
 from zmq import devices
-zmq.Context = zmq._Context
-zmq.Socket = zmq._Socket
+import gevent_zeromq.core as zmq
+
+zmq.Socket = zmq.GreenSocket
+zmq.Context = zmq.GreenContext
+Socket = zmq.GreenSocket
+Context = zmq.GreenContext
 
 def monkey_patch():
     """
@@ -33,5 +36,7 @@ def monkey_patch():
     compatibility as well.
     """
     ozmq = __import__('zmq')
-    ozmq.Socket = zmq.Socket
-    ozmq.Context = zmq.Context
+    ozmq.Socket = zmq.GreenSocket
+    ozmq.Context = zmq.GreenContext
+
+__all__ = zmq.__all__ + ['monkey_patch']

@@ -2,35 +2,13 @@
 """
 import zmq
 from zmq import *
-
-# imported with different names as to not have the star import try to to clobber (when building with cython)
-from zmq.core.context import Context as _original_Context
-from zmq.core.socket import Socket as _original_Socket
 from zmq import devices
-from zmq.core import *
+__all__ = zmq.__all__
 
 from gevent.event import AsyncResult
 from gevent.hub import get_hub
 
-
-class _Context(_original_Context):
-    """Replacement for :class:`zmq.core.context.Context`
-
-    Ensures that the greened Socket below is used in calls to `socket`.
-    """
-
-    def socket(self, socket_type):
-        """Overridden method to ensure that the green version of socket is used
-
-        Behaves the same as :meth:`zmq.core.context.Context.socket`, but ensures
-        that a :class:`Socket` with all of its send and recv methods set to be
-        non-blocking is returned
-        """
-        if self.closed:
-            raise ZMQError(ENOTSUP)
-        return _Socket(self, socket_type)
-
-class _Socket(_original_Socket):
+class GreenSocket(Socket):
     """Green version of :class:`zmq.core.socket.Socket`
 
     The following methods are overridden:
@@ -52,15 +30,26 @@ class _Socket(_original_Socket):
     def __init__(self, context, socket_type):
         self.__setup_events()
 
-    def close(self):
+    def __del__(self):
+        self.close()
+
+    def close(self, linger=None):
+        super(GreenSocket, self).close(linger)
+        self.__cleanup_events()
+
+    def __cleanup_events(self):
         # close the _state_event event, keeps the number of active file descriptors down
-        if not self._closed and getattr(self, '_state_event', None):
+        if getattr(self, '_state_event', None):
             try:
                 self._state_event.stop()
             except AttributeError, e:
                 # gevent<1.0 compat
                 self._state_event.cancel()
-        super(_Socket, self).close()
+
+        # if the socket has entered a close state resume any waiting greenlets
+        if hasattr(self, '__writable'):
+            self.__writable.set()
+            self.__readable.set()
 
     def __setup_events(self):
         self.__readable = AsyncResult()
@@ -101,13 +90,13 @@ class _Socket(_original_Socket):
     def send(self, data, flags=0, copy=True, track=False):
         # if we're given the NOBLOCK flag act as normal and let the EAGAIN get raised
         if flags & zmq.NOBLOCK:
-            return super(_Socket, self).send(data, flags, copy, track)
+            return super(GreenSocket, self).send(data, flags, copy, track)
         # ensure the zmq.NOBLOCK flag is part of flags
         flags |= zmq.NOBLOCK
         while True: # Attempt to complete this operation indefinitely, blocking the current greenlet
             try:
                 # attempt the actual call
-                return super(_Socket, self).send(data, flags, copy, track)
+                return super(GreenSocket, self).send(data, flags, copy, track)
             except zmq.ZMQError, e:
                 # if the raised ZMQError is not EAGAIN, reraise
                 if e.errno != zmq.EAGAIN:
@@ -117,12 +106,19 @@ class _Socket(_original_Socket):
 
     def recv(self, flags=0, copy=True, track=False):
         if flags & zmq.NOBLOCK:
-            return super(_Socket, self).recv(flags, copy, track)
+            return super(GreenSocket, self).recv(flags, copy, track)
         flags |= zmq.NOBLOCK
         while True:
             try:
-                return super(_Socket, self).recv(flags, copy, track)
+                return super(GreenSocket, self).recv(flags, copy, track)
             except zmq.ZMQError, e:
                 if e.errno != zmq.EAGAIN:
                     raise
             self._wait_read()
+
+class GreenContext(Context):
+    """Replacement for :class:`zmq.core.context.Context`
+
+    Ensures that the greened Socket above is used in calls to `socket`.
+    """
+    _socket_class = GreenSocket
