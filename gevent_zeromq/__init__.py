@@ -25,7 +25,7 @@ from zmq import devices
 zmq.Context = zmq._Context
 zmq.Socket = zmq._Socket
 
-def monkey_patch(test_suite=False):
+def monkey_patch():
     """
     Monkey patches `zmq.Context` and `zmq.Socket`
     
@@ -35,7 +35,3 @@ def monkey_patch(test_suite=False):
     ozmq = __import__('zmq')
     ozmq.Socket = zmq.Socket
     ozmq.Context = zmq.Context
-
-    if test_suite:
-        from gevent_zeromq.tests import monkey_patch_test_suite
-        monkey_patch_test_suite()

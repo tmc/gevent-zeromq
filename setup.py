@@ -57,14 +57,14 @@ class TestCommand(Command):
             print ("If you did build gevent_zeromq in-place, then this is a real error.")
             sys.exit(1)
 
-        gevent_zeromq.monkey_patch(test_suite=True) # monkey patch
         import zmq
-        self._zmq_dir = os.path.dirname(zmq.__file__)
+        zmq_tests = os.path.join(os.path.dirname(zmq.__file__), 'tests')
+        tests = os.path.join(os.path.dirname(gevent_zeromq.__file__), 'tests.py')
 
         if nose is None:
             print ("nose unavailable, skipping tests.")
         else:
-            return nose.core.TestProgram(argv=["", '-vvs', os.path.join(self._zmq_dir, 'tests')])
+            return nose.core.TestProgram(argv=["", '-vvs', tests, zmq_tests])
 
 __version__ = (0, 2, 2)
 
