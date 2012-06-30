@@ -60,6 +60,9 @@ class TestCommand(Command):
         import zmq
         zmq_tests = os.path.join(os.path.dirname(zmq.__file__), 'tests')
         tests = os.path.join(os.path.dirname(gevent_zeromq.__file__), 'tests.py')
+        import zmq.tests
+        zmq.tests.have_gevent = True
+        zmq.tests.gzmq = gevent_zeromq
 
         if nose is None:
             print ("nose unavailable, skipping tests.")
