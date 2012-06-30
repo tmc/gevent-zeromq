@@ -25,8 +25,10 @@ import gevent_zeromq.core as zmq
 
 zmq.Socket = zmq.GreenSocket
 zmq.Context = zmq.GreenContext
+zmq.Poller = zmq.GreenPoller
 Socket = zmq.GreenSocket
 Context = zmq.GreenContext
+Poller = zmq.GreenPoller
 
 def monkey_patch():
     """
@@ -38,5 +40,6 @@ def monkey_patch():
     ozmq = __import__('zmq')
     ozmq.Socket = zmq.GreenSocket
     ozmq.Context = zmq.GreenContext
+    ozmq.Poller = zmq.GreenPoller
 
 __all__ = zmq.__all__ + ['monkey_patch']
