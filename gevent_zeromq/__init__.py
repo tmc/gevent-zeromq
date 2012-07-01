@@ -22,13 +22,14 @@ to trigger needed events.
 from zmq import *
 from zmq import devices
 import gevent_zeromq.core as zmq
+from gevent_zeromq.poll import GreenPoller
 
 zmq.Socket = zmq.GreenSocket
 zmq.Context = zmq.GreenContext
-zmq.Poller = zmq.GreenPoller
+zmq.Poller = GreenPoller
 Socket = zmq.GreenSocket
 Context = zmq.GreenContext
-Poller = zmq.GreenPoller
+Poller = GreenPoller
 
 def monkey_patch():
     """
@@ -40,6 +41,6 @@ def monkey_patch():
     ozmq = __import__('zmq')
     ozmq.Socket = zmq.GreenSocket
     ozmq.Context = zmq.GreenContext
-    ozmq.Poller = zmq.GreenPoller
+    ozmq.Poller = GreenPoller
 
 __all__ = zmq.__all__ + ['monkey_patch']
