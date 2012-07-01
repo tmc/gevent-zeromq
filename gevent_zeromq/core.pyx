@@ -20,7 +20,9 @@ cdef class GreenSocket(_Socket):
     The following methods are overridden:
 
         * send
+        * send_multipart
         * recv
+        * recv_multipart
 
     To ensure that the ``zmq.NOBLOCK`` flag is set and that sending or recieving
     is deferred to the hub if a ``zmq.EAGAIN`` (retry) error is raised.
@@ -34,9 +36,13 @@ cdef class GreenSocket(_Socket):
     """
     cdef object __readable
     cdef object __writable
+    cdef object __in_send_mulitpart
+    cdef object __in_recv_mulitpart
     cdef public object _state_event
 
     def __init__(self, context, int socket_type):
+        self.__in_send_multipart = False
+        self.__in_recv_multipart = False
         self.__setup_events()
 
     def __del__(self):
@@ -73,13 +79,11 @@ cdef class GreenSocket(_Socket):
 
     def __state_changed(self, event=None, _evtype=None):
         cdef int events
+        if self.closed:
+            self.__cleanup_events()
+            return
         try:
-            if self.closed:
-                # if the socket has entered a close state resume any waiting greenlets
-                self.__writable.set()
-                self.__readable.set()
-                return
-            events = self.getsockopt(EVENTS)
+            events = super(GreenSocket, self).getsockopt(EVENTS)
         except ZMQError, exc:
             self.__writable.set_exception(exc)
             self.__readable.set_exception(exc)
@@ -91,11 +95,17 @@ cdef class GreenSocket(_Socket):
 
     cdef _wait_write(self) with gil:
         self.__writable = AsyncResult()
-        self.__writable.get()
+        try:
+            self.__writable.get(timeout=1)
+        except gevent.Timeout:
+            self.__writable.set()
 
     cdef _wait_read(self) with gil:
         self.__readable = AsyncResult()
-        self.__readable.get()
+        try:
+            self.__readable.get(timeout=1)
+        except gevent.Timeout:
+            self.__readable.set()
 
     cpdef object send(self, object data, int flags=0, copy=True, track=False):
         # if we're given the NOBLOCK flag act as normal and let the EAGAIN get raised
@@ -125,6 +135,26 @@ cdef class GreenSocket(_Socket):
                 if e.errno != EAGAIN:
                     raise
             self._wait_read()
+
+    def send_multipart(self, *args, **kwargs):
+        """wrap send_multipart to prevent state_changed on each partial send"""
+        self.__in_send_multipart = True
+        try:
+            msg = super(GreenSocket, self).send_multipart(*args, **kwargs)
+        finally:
+            self.__in_send_multipart = False
+            self.__state_changed()
+        return msg
+
+    def recv_multipart(self, *args, **kwargs):
+        """wrap recv_multipart to prevent state_changed on each partial recv"""
+        self.__in_recv_multipart = True
+        try:
+            msg = super(GreenSocket, self).recv_multipart(*args, **kwargs)
+        finally:
+            self.__in_recv_multipart = False
+            self.__state_changed()
+        return msg
 
 
 class GreenContext(_Context):

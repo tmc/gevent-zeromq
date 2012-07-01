@@ -17,7 +17,9 @@ class GreenSocket(Socket):
     The following methods are overridden:
 
         * send
+        * send_multipart
         * recv
+        * recv_multipart
 
     To ensure that the ``zmq.NOBLOCK`` flag is set and that sending or recieving
     is deferred to the hub if a ``zmq.EAGAIN`` (retry) error is raised.
@@ -31,6 +33,8 @@ class GreenSocket(Socket):
     """
 
     def __init__(self, context, socket_type):
+        self.__in_send_multipart = False
+        self.__in_recv_multipart = False
         self.__setup_events()
 
     def __del__(self):
@@ -66,13 +70,11 @@ class GreenSocket(Socket):
             self._state_event = read_event(self.getsockopt(FD), self.__state_changed, persist=True)
 
     def __state_changed(self, event=None, _evtype=None):
+        if self.closed:
+            self.__cleanup_events()
+            return
         try:
-            if self.closed:
-                # if the socket has entered a close state resume any waiting greenlets
-                self.__writable.set()
-                self.__readable.set()
-                return
-            events = self.getsockopt(zmq.EVENTS)
+            events = super(GreenSocket, self).getsockopt(zmq.EVENTS)
         except ZMQError, exc:
             self.__writable.set_exception(exc)
             self.__readable.set_exception(exc)
@@ -84,16 +86,28 @@ class GreenSocket(Socket):
 
     def _wait_write(self):
         self.__writable = AsyncResult()
-        self.__writable.get()
+        try:
+            self.__writable.get(timeout=1)
+        except gevent.Timeout:
+            self.__writable.set()
 
     def _wait_read(self):
         self.__readable = AsyncResult()
-        self.__readable.get()
+        try:
+            self.__readable.get(timeout=1)
+        except gevent.Timeout:
+            self.__readable.set()
 
     def send(self, data, flags=0, copy=True, track=False):
         # if we're given the NOBLOCK flag act as normal and let the EAGAIN get raised
         if flags & zmq.NOBLOCK:
-            return super(GreenSocket, self).send(data, flags, copy, track)
+            try:
+                msg = super(GreenSocket, self).send(data, flags, copy, track)
+            finally:
+                if not self.__in_send_multipart:
+                    self.__state_changed()
+            return msg
+
         # ensure the zmq.NOBLOCK flag is part of flags
         flags |= zmq.NOBLOCK
         while True: # Attempt to complete this operation indefinitely, blocking the current greenlet
@@ -109,15 +123,47 @@ class GreenSocket(Socket):
 
     def recv(self, flags=0, copy=True, track=False):
         if flags & zmq.NOBLOCK:
-            return super(GreenSocket, self).recv(flags, copy, track)
+            try:
+                msg = super(GreenSocket, self).recv(flags, copy, track)
+            finally:
+                if not self.__in_recv_multipart:
+                    self.__state_changed()
+            return msg
+
         flags |= zmq.NOBLOCK
         while True:
             try:
                 return super(GreenSocket, self).recv(flags, copy, track)
             except zmq.ZMQError, e:
                 if e.errno != zmq.EAGAIN:
+                    if not self.__in_recv_multipart:
+                        self.__state_changed()
                     raise
+            else:
+                if not self.__in_recv_multipart:
+                    self.__state_changed()
+                return msg
             self._wait_read()
+
+    def send_multipart(self, *args, **kwargs):
+        """wrap send_multipart to prevent state_changed on each partial send"""
+        self.__in_send_multipart = True
+        try:
+            msg = super(GreenSocket, self).send_multipart(*args, **kwargs)
+        finally:
+            self.__in_send_multipart = False
+            self.__state_changed()
+        return msg
+
+    def recv_multipart(self, *args, **kwargs):
+        """wrap recv_multipart to prevent state_changed on each partial recv"""
+        self.__in_recv_multipart = True
+        try:
+            msg = super(GreenSocket, self).recv_multipart(*args, **kwargs)
+        finally:
+            self.__in_recv_multipart = False
+            self.__state_changed()
+        return msg
 
 
 class GreenContext(Context):
