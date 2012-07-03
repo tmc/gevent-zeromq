@@ -9,8 +9,8 @@ current greenlet instead.
 Requirements
 ------------
 
-pyzmq==2.2.0
-gevent (compatible with 1.0 pre-releases as well)
+* pyzmq==2.2.0
+* gevent (compatible with 1.0 pre-releases as well)
 
 
 Usage
