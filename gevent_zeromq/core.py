@@ -6,8 +6,10 @@ from zmq import devices
 __all__ = zmq.__all__
 
 import gevent
+from gevent import select
 from gevent.event import AsyncResult
 from gevent.hub import get_hub
+
 
 class GreenSocket(Socket):
     """Green version of :class:`zmq.core.socket.Socket`
@@ -170,3 +172,4 @@ class GreenContext(Context):
     Ensures that the greened Socket above is used in calls to `socket`.
     """
     _socket_class = GreenSocket
+

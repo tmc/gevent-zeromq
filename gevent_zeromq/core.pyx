@@ -6,11 +6,13 @@ from zmq import devices
 __all__ = zmq.__all__
 
 import gevent
+from gevent import select
 from gevent.event import AsyncResult
 from gevent.hub import get_hub
 
 from zmq.core.context cimport Context as _Context
 from zmq.core.socket cimport Socket as _Socket
+
 
 cdef class GreenSocket(_Socket):
     """Green version of :class:`zmq.core.socket.Socket`
