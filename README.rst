@@ -1,3 +1,8 @@
+DEPRECATED!
+===========
+This work has been merged upstream into `pyzmq <https://github.com/zeromq/pyzmq>`_
+----------------------------------------------------------------------------------
+
 =============
 gevent-zeromq
 =============
