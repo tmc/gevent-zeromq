@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""gevent_zmq - gevent compatibility with zeromq.
+"""gevent_zeromq - gevent compatibility with zeromq.
 
 Usage
 -----
