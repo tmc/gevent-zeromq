@@ -1,4 +1,4 @@
-DEPRECATED!
+COMPLETE!
 ===========
 This work has been merged upstream into `pyzmq <https://github.com/zeromq/pyzmq>`_
 ----------------------------------------------------------------------------------
